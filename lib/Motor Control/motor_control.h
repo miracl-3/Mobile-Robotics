@@ -38,17 +38,35 @@ extern volatile long rightPulses;
 extern volatile long leftPulses;
 extern const int pulsesPerRevolution;
 
-// Functions declaration
+// Structure containing Encoder's Odometry
+struct Odometry {
+  float x;
+  float y;
+  float theta;
+};
+
+Odometry encoder_odometry(float left_wheel_velocity, float right_wheel_velocity, float delta_t);
+
+// Initialize motor pins and encoder interrupts
 void motorSetUp();
+
+// Movement commands with PWM speed input (0–255)
 void moveForward(int speed);
 void moveBackward(int speed);
 void turnLeft(int speed);
 void turnRight(int speed);
 void stop();
+
+// Interrupt Service Routines for encoder tick counting
 void IRAM_ATTR handleRightEncoder();
 void IRAM_ATTR handleLeftEncoder();
-void pulseControl(float distance);
-int DistancetoPulse(float distance);
-std::pair<int,int> error_motor_drive(int error);
 
+// Utility: Convert pulses to RPM
+float pulsesToRPM(int pulses);
+
+// Utility: Estimate required pulses to reach distance in meters
+int DistancetoPulse(float distance);
+
+// Estimate robot's pose using differential drive odometry model
+Odometry encoder_odometry(float vL, float vR, float delta_t);
 #endif

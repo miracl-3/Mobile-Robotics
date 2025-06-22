@@ -5,6 +5,8 @@
 volatile long rightPulses = 0;
 volatile long leftPulses = 0;
 const int pulsesPerRevolution = 2000;
+const int ticksperRevolution = 515; // 46.8 x 11
+
 float kp = 10;
 float ki = 5;
 float kd = 1;
@@ -109,41 +111,15 @@ void handleLeftEncoder(){
     }
 }
 
-void pulsesControl(float distance){
-
+float pulsesToRPM(int pulsesCount){
+    float revolutions = (float)pulsesCount / ticksperRevolution;
+    float rpm = revolutions * 60.0;
+    return rpm;
 }
 
 int DistancetoPulse(float distance){
     // 46.8 : gear ratio
     // 11 : number of pulses generated each rotation
     return (int)(gear_ratio * pulse_per_revo * distance / wheel_circumference);
-}
-
-std::pair<int,int> error_motor_drive(int error){
-  // Dynamic Speed Adjustment
-  int dynamic_base_pwm = base_pwm;
-  if(abs(error) == 0) {  // For faster straight Line Movement
-    dynamic_base_pwm = base_pwm + 30;
-  }
-
-  integral_error = constrain(integral_error + error, -100, 100);
-  integral_error = ki * integral_error;
-  proportional_error = kp * error;
-  total_error = proportional_error + integral_error;
-
-  left_pwm =  dynamic_base_pwm - total_error;
-  right_pwm = dynamic_base_pwm + total_error;
-
-  left_pwm = constrain(left_pwm + 5, 70, 255);
-  right_pwm = constrain(right_pwm, 70, 255);
-
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH); 
-  ledcWrite(channel_right, right_pwm);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  ledcWrite(channel_left, left_pwm);
-
-  return std::make_pair(left_pwm, right_pwm);
 }
 
