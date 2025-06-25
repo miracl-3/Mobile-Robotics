@@ -38,15 +38,6 @@ extern volatile long rightPulses;
 extern volatile long leftPulses;
 extern const int pulsesPerRevolution;
 
-// Structure containing Encoder's Odometry
-struct Odometry {
-  float x;
-  float y;
-  float theta;
-};
-
-Odometry encoder_odometry(float left_wheel_velocity, float right_wheel_velocity, float delta_t);
-
 // Initialize motor pins and encoder interrupts
 void motorSetUp();
 
@@ -67,6 +58,7 @@ float pulsesToRPM(int pulses);
 // Utility: Estimate required pulses to reach distance in meters
 int DistancetoPulse(float distance);
 
-// Estimate robot's pose using differential drive odometry model
-Odometry encoder_odometry(float vL, float vR, float delta_t);
+// Set motor speed function
+void setMotorSpeed(float left_wheel_velocity, float right_wheel_velocity);
+
 #endif

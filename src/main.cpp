@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <SparkFun_BNO08x_Arduino_Library.h>
+#include <BNO08x.h>
+#include <odometry.h>
+#include <motor_control.h>
 
 BNO08x myIMU;
 

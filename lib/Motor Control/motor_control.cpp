@@ -46,6 +46,13 @@ void motorSetUp(){
     attachInterrupt(digitalPinToInterrupt(enL1_A), handleLeftEncoder, RISING);
 }
 
+
+void setMotorSpeed(float left_wheel_velocity, float right_wheel_velocity){
+
+
+
+}
+
 void moveForward(int speed){ 
     digitalWrite(IN1, HIGH);
     digitalWrite(IN2, LOW);

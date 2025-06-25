@@ -40,7 +40,7 @@
   Thank you Adafruit and your developers for all your hard work put into your Library!
 */
 
-#include "SparkFun_BNO08x_Arduino_Library.h"
+#include "BNO08x.h"
 
 int8_t _int_pin = -1, _reset_pin = -1;
 static TwoWire *_i2cPort = NULL;		//The generic connection to user's chosen I2C hardware
