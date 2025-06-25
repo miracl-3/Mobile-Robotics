@@ -19,16 +19,16 @@ void setup() {
   Serial.println("Initializing BNO08X IMU (no INT pin)...");
 
   if (!myIMU.begin(0x4A, Wire)) {
-    Serial.println("❌ IMU init failed.");
+    Serial.println("IMU init failed.");
     while (1);
   }
 
-  Serial.println("✅ IMU initialized successfully!");
+  Serial.println("IMU initialized successfully!");
 
   if (!myIMU.enableRotationVector(50)) {
-    Serial.println("❌ Failed to enable Rotation Vector.");
+    Serial.println("Failed to enable Rotation Vector.");
   } else {
-    Serial.println("✅ Rotation Vector enabled.");
+    Serial.println("Rotation Vector enabled.");
   }
 }
 
