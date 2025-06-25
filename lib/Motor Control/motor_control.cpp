@@ -1,12 +1,14 @@
 #include <Arduino.h>
-#include <motor_control.h>
+#include "motor_control.h"
 #include <math.h>
 
 volatile long rightPulses = 0;
 volatile long leftPulses = 0;
-const int pulsesPerRevolution = 2000;
-const int ticksperRevolution = 515; // 46.8 x 11
 
+const int pulsesPerRevolution = 2000;
+const int ticksperRevolution = GEAR_RATIO * PULSES_PER_REV;  // 46.8 × 11
+
+// PID control values (not currently used here, but can be applied later)
 float kp = 10;
 float ki = 5;
 float kd = 1;
@@ -15,118 +17,130 @@ float integral_error;
 float derivative_error;
 float total_error;
 int base_pwm = 190;
+
 int left_pwm, right_pwm;
-const float wheel_circumference = 2 * 3.14 * wheel_radius;
+const float wheel_circumference = 2 * PI * WHEEL_RADIUS;
 
-//
-const int balance_factor = 15;
+const int balance_factor = 15;  // For turning adjustment
 
-void motorSetUp(){
-    // Motor pin setup
-    pinMode(IN1, OUTPUT);
-    pinMode(IN2, OUTPUT);
-    pinMode(IN3, OUTPUT);
-    pinMode(IN4, OUTPUT);
+// ========================
+// Initialization
+// ========================
+void motorSetUp() {
+    // Motor control pins
+    pinMode(MOTOR_LEFT_IN1, OUTPUT);
+    pinMode(MOTOR_LEFT_IN2, OUTPUT);
+    pinMode(MOTOR_RIGHT_IN1, OUTPUT);
+    pinMode(MOTOR_RIGHT_IN2, OUTPUT);
 
-    // Encoder pin setup
-    pinMode(enR1_A, INPUT_PULLUP);
-    pinMode(enR2_B, INPUT_PULLUP);
-    pinMode(enL1_A, INPUT_PULLUP);
-    pinMode(enL2_B, INPUT_PULLUP);
+    // Encoder pins
+    pinMode(ENCODER_RIGHT_A, INPUT_PULLUP);
+    pinMode(ENCODER_RIGHT_B, INPUT_PULLUP);
+    pinMode(ENCODER_LEFT_A, INPUT_PULLUP);
+    pinMode(ENCODER_LEFT_B, INPUT_PULLUP);
 
-    // PWM set up - Right motor 
-    ledcSetup(channel_right, freq, reso);
-    ledcAttachPin(ENB, channel_right);
-    // PWM set up - Left Motor
-    ledcSetup(channel_left, freq, reso);
-    ledcAttachPin(ENA, channel_left);
+    // PWM setup
+    ledcSetup(PWM_CHANNEL_RIGHT, PWM_FREQ, PWM_RESOLUTION);
+    ledcAttachPin(MOTOR_RIGHT_EN, PWM_CHANNEL_RIGHT);
 
-    // Attaching interrupts in each encoder
-    attachInterrupt(digitalPinToInterrupt(enR1_A), handleRightEncoder, RISING);
-    attachInterrupt(digitalPinToInterrupt(enL1_A), handleLeftEncoder, RISING);
+    ledcSetup(PWM_CHANNEL_LEFT, PWM_FREQ, PWM_RESOLUTION);
+    ledcAttachPin(MOTOR_LEFT_EN, PWM_CHANNEL_LEFT);
+
+    // Encoder interrupts
+    attachInterrupt(digitalPinToInterrupt(ENCODER_RIGHT_A), handleRightEncoder, RISING);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_LEFT_A), handleLeftEncoder, RISING);
 }
 
+// ========================
+// Motor Motion
+// ========================
+void moveForward(int speed) { 
+    digitalWrite(MOTOR_LEFT_IN1, HIGH);
+    digitalWrite(MOTOR_LEFT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_LEFT, speed);
 
-void setMotorSpeed(float left_wheel_velocity, float right_wheel_velocity){
-
-
-
+    digitalWrite(MOTOR_RIGHT_IN1, HIGH);
+    digitalWrite(MOTOR_RIGHT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_RIGHT, speed);
 }
 
-void moveForward(int speed){ 
-    digitalWrite(IN1, HIGH);
-    digitalWrite(IN2, LOW);
-    ledcWrite(channel_left, speed);
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
-    ledcWrite(channel_right, speed);
+void moveBackward(int speed) {
+    digitalWrite(MOTOR_LEFT_IN1, LOW);
+    digitalWrite(MOTOR_LEFT_IN2, HIGH);
+    ledcWrite(PWM_CHANNEL_LEFT, speed);
+
+    digitalWrite(MOTOR_RIGHT_IN1, LOW);
+    digitalWrite(MOTOR_RIGHT_IN2, HIGH);
+    ledcWrite(PWM_CHANNEL_RIGHT, speed);
 }
 
-void moveBackward(int speed){
-    digitalWrite(IN1, LOW);
-    digitalWrite(IN2, HIGH);
-    ledcWrite(channel_left, speed);
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, HIGH);
-    ledcWrite(channel_right, speed);
+void turnLeft(int speed) {
+    digitalWrite(MOTOR_LEFT_IN1, HIGH);
+    digitalWrite(MOTOR_LEFT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_LEFT, speed - balance_factor);
+
+    digitalWrite(MOTOR_RIGHT_IN1, HIGH);
+    digitalWrite(MOTOR_RIGHT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_RIGHT, speed);
 }
 
-void turnLeft(int speed){ 
-    digitalWrite(IN1, HIGH);
-    digitalWrite(IN2, LOW);
-    ledcWrite(channel_left, speed - balance_factor);
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
-    ledcWrite(channel_right, speed);
-}
+void turnRight(int speed) {
+    digitalWrite(MOTOR_LEFT_IN1, HIGH);
+    digitalWrite(MOTOR_LEFT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_LEFT, speed);
 
-void turnRight(int speed){
-    digitalWrite(IN1, HIGH);
-    digitalWrite(IN2, LOW);
-    ledcWrite(channel_left, speed);
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
-    ledcWrite(channel_right, speed - balance_factor);
+    digitalWrite(MOTOR_RIGHT_IN1, HIGH);
+    digitalWrite(MOTOR_RIGHT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_RIGHT, speed - balance_factor);
 }
 
 void stop() {
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  ledcWrite(channel_left, 0);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  ledcWrite(channel_right, 0);
+    digitalWrite(MOTOR_LEFT_IN1, LOW);
+    digitalWrite(MOTOR_LEFT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_LEFT, 0);
+
+    digitalWrite(MOTOR_RIGHT_IN1, LOW);
+    digitalWrite(MOTOR_RIGHT_IN2, LOW);
+    ledcWrite(PWM_CHANNEL_RIGHT, 0);
 }
 
-void handleRightEncoder(){
-    bool A = digitalRead(enR1_A);
-    bool B = digitalRead(enR2_B);
-    if(A == B){
+// ========================
+// Encoder Interrupts
+// ========================
+void IRAM_ATTR handleRightEncoder() {
+    bool A = digitalRead(ENCODER_RIGHT_A);
+    bool B = digitalRead(ENCODER_RIGHT_B);
+    if (A == B) {
         rightPulses++;
-    }else{ 
+    } else {
         rightPulses--;
     }
 }
 
-void handleLeftEncoder(){
-    bool A = digitalRead(enL1_A);
-    bool B = digitalRead(enL2_B);
-    if(A == B){
+void IRAM_ATTR handleLeftEncoder() {
+    bool A = digitalRead(ENCODER_LEFT_A);
+    bool B = digitalRead(ENCODER_LEFT_B);
+    if (A == B) {
         leftPulses--;
-    }else{
+    } else {
         leftPulses++;
     }
 }
 
-float pulsesToRPM(int pulsesCount){
+// ========================
+// Utility Functions
+// ========================
+float pulsesToRPM(int pulsesCount) {
     float revolutions = (float)pulsesCount / ticksperRevolution;
     float rpm = revolutions * 60.0;
     return rpm;
 }
 
-int DistancetoPulse(float distance){
-    // 46.8 : gear ratio
-    // 11 : number of pulses generated each rotation
-    return (int)(gear_ratio * pulse_per_revo * distance / wheel_circumference);
+int DistancetoPulse(float distance) {
+    return (int)(GEAR_RATIO * PULSES_PER_REV * distance / wheel_circumference);
 }
 
+// To be implemented
+void setMotorSpeed(float left_wheel_velocity, float right_wheel_velocity) {
+    // Left as placeholder for future velocity-based control
+}
