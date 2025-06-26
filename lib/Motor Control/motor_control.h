@@ -31,7 +31,7 @@
 
 // Robot Kinematics
 #define GEAR_RATIO         46.8
-#define PULSES_PER_REV     11
+#define PULSES_PER_REV     44
 #define WHEEL_BASE         0.211    // Distance between two wheels (meters)
 #define WHEEL_RADIUS       0.0325   // Radius of each wheel (meters)
 
@@ -48,8 +48,10 @@ void turnLeft(int speed);
 void turnRight(int speed);
 void stop();
 
-void IRAM_ATTR handleRightEncoder();
-void IRAM_ATTR handleLeftEncoder();
+void IRAM_ATTR handleRightEncoderB();
+void IRAM_ATTR handleLeftEncoderB(); 
+void IRAM_ATTR handleRightEncoderA();
+void IRAM_ATTR handleLeftEncoderA();
 
 float pulsesToRPM(int pulses);
 int DistancetoPulse(float distance);
